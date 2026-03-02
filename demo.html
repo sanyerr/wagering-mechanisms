@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brier Betting Mechanism — Interactive Demo</title>
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --green: #16a34a;
+    --red: #dc2626;
+    --gray: #6b7280;
+    --border: #e5e7eb;
+    --text: #1f2937;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 1.5rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.15rem; margin-bottom: 0.75rem; color: var(--accent); }
+  .subtitle { color: var(--gray); font-size: 0.95rem; margin-bottom: 1.5rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .scenario-bar {
+    display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;
+  }
+  .scenario-bar button {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+  }
+  .scenario-bar button:hover { border-color: var(--accent); color: var(--accent); }
+  .scenario-bar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Question input */
+  #question-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Players table */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray); padding: 0.4rem 0.5rem; border-bottom: 2px solid var(--border); }
+  td { padding: 0.5rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr.player-row td { background: var(--card); }
+  input[type="text"], input[type="number"] {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    width: 100%;
+  }
+  input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent); }
+  .prob-display {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-width: 3.5em;
+    text-align: center;
+  }
+  .slider-cell { min-width: 160px; }
+
+  .btn-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+  button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-secondary { background: var(--accent-light); color: var(--accent); }
+  .btn-secondary:hover { background: #bfdbfe; }
+  .btn-danger { background: #fee2e2; color: var(--red); }
+  .btn-danger:hover { background: #fecaca; }
+  .btn-green { background: #dcfce7; color: var(--green); }
+  .btn-green:hover { background: #bbf7d0; }
+
+  /* Outcome section */
+  .outcome-section { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+  .outcome-btn {
+    padding: 0.7rem 1.5rem;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 140px;
+    text-align: center;
+  }
+  .outcome-btn:hover { border-color: var(--accent); }
+  .outcome-btn.selected-yes { background: #dcfce7; border-color: var(--green); color: var(--green); }
+  .outcome-btn.selected-no { background: #fee2e2; border-color: var(--red); color: var(--red); }
+
+  /* Results */
+  .result-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+  .result-row:last-child { border-bottom: none; }
+  .result-name { font-weight: 600; min-width: 100px; }
+  .result-bar-wrap { flex: 1; position: relative; height: 28px; background: #f3f4f6; border-radius: 6px; overflow: hidden; }
+  .result-bar { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+  .result-bar.positive { background: #86efac; }
+  .result-bar.negative { background: #fca5a5; }
+  .result-value { min-width: 80px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .result-value.positive { color: var(--green); }
+  .result-value.negative { color: var(--red); }
+
+  .info-box {
+    background: #eff6ff;
+    border-left: 4px solid var(--accent);
+    padding: 0.75rem 1rem;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.88rem;
+    margin-bottom: 1rem;
+    line-height: 1.7;
+  }
+  .info-box code {
+    background: #dbeafe;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+  }
+
+  .formula-box {
+    background: #fefce8;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.88rem;
+    margin-top: 0.75rem;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+  .formula-box .math {
+    font-family: 'Cambria Math', 'Latin Modern Math', Georgia, serif;
+    font-style: italic;
+  }
+
+  .hidden { display: none; }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--gray);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+  }
+  .remove-btn:hover { background: #fee2e2; color: var(--red); }
+
+  .wager-input { width: 80px !important; }
+  .name-input { width: 110px !important; }
+
+  #budget-check {
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+  }
+  .budget-balanced { background: #dcfce7; color: var(--green); }
+  .budget-not { background: #fee2e2; color: var(--red); }
+
+  .step-indicator {
+    display: inline-block;
+    width: 24px; height: 24px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 24px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+  .step-header { display: flex; align-items: center; margin-bottom: 0.75rem; }
+  .step-header h2 { margin-bottom: 0; }
+
+  @media (max-width: 600px) {
+    body { padding: 0.75rem; }
+    .outcome-btn { min-width: 100px; padding: 0.5rem 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Brier Betting Mechanism</h1>
+<p class="subtitle">Interactive demo based on Lambert et al. (2015)</p>
+
+<div class="info-box">
+  <strong>How it works:</strong> Players each stake money and report their probability estimate
+  for an event. After the outcome is revealed, the total pot is redistributed:
+  more accurate forecasters gain money at the expense of less accurate ones.
+  The mechanism is <strong>budget-balanced</strong> (no money enters or leaves),
+  <strong>sybilproof</strong>, and <strong>incentive-compatible</strong> (honest reporting maximises expected payoff).
+</div>
+
+<!-- Preset scenarios -->
+<div class="card">
+  <div class="step-header"><span class="step-indicator">0</span><h2>Load a Scenario (optional)</h2></div>
+  <div class="scenario-bar" id="scenario-bar"></div>
+  <div class="info-box hidden" id="scenario-hint" style="margin-top:0.75rem;margin-bottom:0;"></div>
+</div>
+
+<!-- Step 1: Setup -->
+<div class="card">
+  <div class="step-header"><span class="step-indicator">1</span><h2>Define the Event & Players</h2></div>
+  <label style="font-size:0.9rem;font-weight:600;">Event question</label>
+  <input type="text" id="question-input" value="Will it rain tomorrow?" placeholder="Describe the binary event...">
+
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th>Name</th>
+        <th>Wager ($)</th>
+        <th class="slider-cell">P(Yes) estimate</th>
+        <th>Prob</th>
+      </tr>
+    </thead>
+    <tbody id="players-body"></tbody>
+  </table>
+
+  <div class="btn-row">
+    <button class="btn-secondary" onclick="addPlayer()">+ Add Player</button>
+    <button class="btn-secondary" onclick="addYou()">+ Add Yourself</button>
+  </div>
+</div>
+
+<!-- Step 2: Outcome -->
+<div class="card">
+  <div class="step-header"><span class="step-indicator">2</span><h2>Reveal the Outcome</h2></div>
+  <div class="outcome-section">
+    <button class="outcome-btn" id="btn-yes" onclick="setOutcome(1)">Yes (x = 1)</button>
+    <button class="outcome-btn" id="btn-no" onclick="setOutcome(0)">No (x = 0)</button>
+    <button class="btn-primary" onclick="calculate()" id="calc-btn" disabled>Calculate Payoffs</button>
+  </div>
+</div>
+
+<!-- Step 3: Results -->
+<div class="card" id="results-card" class="hidden">
+  <div class="step-header"><span class="step-indicator">3</span><h2>Results</h2></div>
+  <div id="results-container"></div>
+  <div id="budget-check"></div>
+  <div class="formula-box" id="formula-detail"></div>
+</div>
+
+<!-- Formula reference -->
+<div class="card">
+  <h2>Formula Reference</h2>
+  <div class="formula-box">
+    <strong>Payoff for player <span class="math">i</span>:</strong><br>
+    <span class="math">
+      &pi;<sub>i</sub> = (w<sub>i</sub> / W)
+      + (w<sub>i</sub> / W) &middot; &sum;<sub>j&ne;i</sub>
+      (w<sub>j</sub> / W) &middot;
+      [ (p<sub>j</sub> &minus; x)&sup2; &minus; (p<sub>i</sub> &minus; x)&sup2; ]
+    </span>
+    <br><br>
+    <span class="math">w<sub>i</sub></span> = player <span class="math">i</span>'s wager &nbsp;|&nbsp;
+    <span class="math">W</span> = total wagers &nbsp;|&nbsp;
+    <span class="math">p<sub>i</sub></span> = player <span class="math">i</span>'s probability estimate &nbsp;|&nbsp;
+    <span class="math">x</span> = outcome (0 or 1)
+    <br><br>
+    The payoff <span class="math">&pi;<sub>i</sub></span> is the <em>fraction of the total pot</em> returned to player <span class="math">i</span>.
+    Multiply by <span class="math">W</span> to get dollars. Profit = payout &minus; wager.
+  </div>
+</div>
+
+<script>
+const NAMES = ['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank', 'Grace', 'Hank'];
+let players = [];
+let nextId = 0;
+let outcome = null;
+
+const scenarios = [
+  {
+    name: 'Simple 2-player',
+    question: 'Will it rain tomorrow?',
+    players: [
+      { name: 'Alice', wager: 50, prob: 0.8 },
+      { name: 'Bob',   wager: 50, prob: 0.3 },
+    ]
+  },
+  {
+    name: 'Asymmetric wagers',
+    question: 'Will the home team win?',
+    players: [
+      { name: 'Alice', wager: 100, prob: 0.7 },
+      { name: 'Bob',   wager: 20,  prob: 0.2 },
+    ]
+  },
+  {
+    name: '3 players, diverse',
+    question: 'Will the stock price rise?',
+    players: [
+      { name: 'Alice', wager: 40, prob: 0.9 },
+      { name: 'Bob',   wager: 40, prob: 0.5 },
+      { name: 'Carol', wager: 40, prob: 0.1 },
+    ]
+  },
+  {
+    name: 'Sybil attack test',
+    question: 'Will the candidate win?',
+    hint: 'A "Sybil attack" is when one person splits their wager across multiple fake accounts to try to game the mechanism. Here, Sybil-1/2/3 are really the same person splitting a $60 wager into three $20 accounts. Try both outcomes and compare their combined profit to what a single "Bob" with $60 at 30% would earn — you\'ll find it\'s exactly the same. That\'s what <strong>sybilproofness</strong> means: splitting accounts gives no advantage.',
+    players: [
+      { name: 'Alice',    wager: 60, prob: 0.7 },
+      { name: 'Sybil-1',  wager: 20, prob: 0.3 },
+      { name: 'Sybil-2',  wager: 20, prob: 0.3 },
+      { name: 'Sybil-3',  wager: 20, prob: 0.3 },
+    ]
+  },
+  {
+    name: 'Consensus',
+    question: 'Will the sun rise tomorrow?',
+    players: [
+      { name: 'Alice', wager: 50, prob: 0.99 },
+      { name: 'Bob',   wager: 50, prob: 0.98 },
+      { name: 'Carol', wager: 50, prob: 0.95 },
+    ]
+  },
+];
+
+// Build scenario buttons
+const scenarioBar = document.getElementById('scenario-bar');
+scenarios.forEach((s, idx) => {
+  const btn = document.createElement('button');
+  btn.textContent = s.name;
+  btn.onclick = () => loadScenario(idx);
+  scenarioBar.appendChild(btn);
+});
+
+function loadScenario(idx) {
+  const s = scenarios[idx];
+  document.getElementById('question-input').value = s.question;
+  players = [];
+  nextId = 0;
+  s.players.forEach(p => {
+    players.push({ id: nextId++, name: p.name, wager: p.wager, prob: p.prob, isYou: false });
+  });
+  outcome = null;
+  document.getElementById('btn-yes').classList.remove('selected-yes');
+  document.getElementById('btn-no').classList.remove('selected-no');
+  document.getElementById('calc-btn').disabled = true;
+  document.getElementById('results-card').classList.add('hidden');
+  renderPlayers();
+
+  // Show/hide scenario hint
+  const hintEl = document.getElementById('scenario-hint');
+  if (s.hint) {
+    hintEl.innerHTML = s.hint;
+    hintEl.classList.remove('hidden');
+  } else {
+    hintEl.classList.add('hidden');
+  }
+
+  // Highlight active scenario button
+  scenarioBar.querySelectorAll('button').forEach((b, i) => {
+    b.classList.toggle('active', i === idx);
+  });
+}
+
+function addPlayer(name, wager, prob) {
+  const usedNames = new Set(players.map(p => p.name));
+  const defaultName = name || NAMES.find(n => !usedNames.has(n)) || `Player ${nextId + 1}`;
+  players.push({
+    id: nextId++,
+    name: defaultName,
+    wager: wager ?? 50,
+    prob: prob ?? 0.5,
+    isYou: false,
+  });
+  renderPlayers();
+}
+
+function addYou() {
+  if (players.some(p => p.isYou)) return;
+  players.push({
+    id: nextId++,
+    name: 'You',
+    wager: 50,
+    prob: 0.5,
+    isYou: true,
+  });
+  renderPlayers();
+}
+
+function removePlayer(id) {
+  players = players.filter(p => p.id !== id);
+  renderPlayers();
+}
+
+function renderPlayers() {
+  const tbody = document.getElementById('players-body');
+  tbody.innerHTML = '';
+  players.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.className = 'player-row';
+    tr.innerHTML = `
+      <td><button class="remove-btn" onclick="removePlayer(${p.id})" title="Remove">&times;</button></td>
+      <td><input class="name-input" type="text" value="${p.name}" data-id="${p.id}" data-field="name" ${p.isYou ? 'style="font-weight:700;color:var(--accent)"' : ''}></td>
+      <td><input class="wager-input" type="number" min="1" step="1" value="${p.wager}" data-id="${p.id}" data-field="wager"></td>
+      <td class="slider-cell"><input type="range" min="0" max="100" value="${Math.round(p.prob * 100)}" data-id="${p.id}" data-field="prob"></td>
+      <td class="prob-display" id="prob-display-${p.id}">${(p.prob * 100).toFixed(0)}%</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Attach listeners
+  tbody.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const id = parseInt(e.target.dataset.id);
+      const field = e.target.dataset.field;
+      const player = players.find(p => p.id === id);
+      if (!player) return;
+      if (field === 'name') player.name = e.target.value;
+      else if (field === 'wager') player.wager = Math.max(0, parseFloat(e.target.value) || 0);
+      else if (field === 'prob') {
+        player.prob = parseInt(e.target.value) / 100;
+        document.getElementById(`prob-display-${id}`).textContent = `${e.target.value}%`;
+      }
+    });
+  });
+}
+
+function setOutcome(x) {
+  outcome = x;
+  document.getElementById('btn-yes').classList.toggle('selected-yes', x === 1);
+  document.getElementById('btn-no').classList.toggle('selected-no', x === 0);
+  document.getElementById('calc-btn').disabled = false;
+}
+
+function calculate() {
+  if (outcome === null || players.length < 2) {
+    alert('Need at least 2 players and an outcome selected.');
+    return;
+  }
+
+  const W = players.reduce((s, p) => s + p.wager, 0);
+  if (W <= 0) { alert('Total wager must be positive.'); return; }
+
+  const x = outcome;
+
+  // Compute payoff fractions using the Brier betting mechanism formula
+  const fractions = players.map((pi, i) => {
+    const wi = pi.wager;
+    const fi = wi / W; // fraction of pot wagered by i
+    let sum = 0;
+    for (let j = 0; j < players.length; j++) {
+      if (j === i) continue;
+      const pj = players[j];
+      const fj = pj.wager / W;
+      sum += fj * ((pj.prob - x) ** 2 - (pi.prob - x) ** 2);
+    }
+    return fi + fi * sum;
+  });
+
+  // Render results
+  const container = document.getElementById('results-container');
+  container.innerHTML = '';
+  document.getElementById('results-card').classList.remove('hidden');
+
+  const maxAbs = Math.max(...fractions.map((f, i) => Math.abs(f * W - players[i].wager)));
+
+  let totalPayout = 0;
+  const details = [];
+
+  players.forEach((p, i) => {
+    const payout = fractions[i] * W;
+    const profit = payout - p.wager;
+    totalPayout += payout;
+
+    const row = document.createElement('div');
+    row.className = 'result-row';
+
+    const barWidth = maxAbs > 0 ? (Math.abs(profit) / maxAbs * 80) : 0;
+    const isPos = profit >= 0;
+
+    row.innerHTML = `
+      <span class="result-name" ${p.isYou ? 'style="color:var(--accent)"' : ''}>${p.name}</span>
+      <div class="result-bar-wrap">
+        <div class="result-bar ${isPos ? 'positive' : 'negative'}" style="width:${barWidth}%"></div>
+      </div>
+      <span class="result-value ${isPos ? 'positive' : 'negative'}">
+        ${isPos ? '+' : ''}${profit.toFixed(2)}
+      </span>
+    `;
+    container.appendChild(row);
+
+    // Build detail string
+    const brierScore = (p.prob - x) ** 2;
+    details.push(`<strong>${p.name}</strong>: wagered $${p.wager}, estimated ${(p.prob*100).toFixed(0)}%, Brier loss = (${p.prob.toFixed(2)} &minus; ${x})&sup2; = ${brierScore.toFixed(4)}, payout = $${payout.toFixed(2)}, profit = <span class="${isPos?'positive':'negative'}">${isPos?'+':''}$${profit.toFixed(2)}</span>`);
+  });
+
+  // Budget balance check
+  const budgetDiv = document.getElementById('budget-check');
+  const balanced = Math.abs(totalPayout - W) < 0.005;
+  budgetDiv.className = balanced ? 'budget-balanced' : 'budget-not';
+  budgetDiv.textContent = balanced
+    ? `Budget balanced: total pot $${W.toFixed(2)} = total payouts $${totalPayout.toFixed(2)}`
+    : `NOT balanced: pot $${W.toFixed(2)} vs payouts $${totalPayout.toFixed(2)} (rounding)`;
+
+  // Detail formula breakdown
+  document.getElementById('formula-detail').innerHTML =
+    `<strong>Breakdown (outcome x = ${x}):</strong><br><br>` + details.join('<br><br>');
+
+  // Scroll to results
+  document.getElementById('results-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Initialize with the first scenario
+loadScenario(0);
+</script>
+</body>
+</html>
